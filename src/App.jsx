@@ -330,6 +330,7 @@ function Cart({ cart, quantity, remove, setCart, navigate }) {
           </form>}
           <p className="checkout-disclaimer">Online card payment is not connected yet. UPI and card submissions are order requests for the store to confirm.</p>
         </>}
+        <CancellationPolicy placement="checkout-policy" />
       </section>
     </div>}
   </section>
@@ -401,6 +402,19 @@ function AdminDashboard() {
   </section>
 }
 
+function CancellationPolicy({ placement }) {
+  return <section className={`policy-section ${placement}`} aria-labelledby={`policy-title-${placement}`}>
+    <p className="eyebrow">PLEASE READ BEFORE ORDERING</p>
+    <h2 id={`policy-title-${placement}`}>Cancellation &amp; Return Policy</h2>
+    <ul>
+      <li><strong>Cancellation:</strong> Free cancellation is allowed before your order is dispatched.</li>
+      <li><strong>After delivery:</strong> Returns or replacements are accepted within 7 days of delivery for damaged items, wrong prescription, or manufacturing defects.</li>
+      <li><strong>Non-returnable:</strong> Used glasses and change-of-mind requests after delivery are non-returnable.</li>
+      <li><strong>Return process:</strong> Message <a href="tel:+917045609002">+91 7045609002</a> with an unboxing video or photo to process a return.</li>
+    </ul>
+  </section>
+}
+
 function Contact() {
   const [sent, setSent] = useState(false)
   return <section className="contact wrap">
@@ -430,6 +444,7 @@ function Footer({ navigate }) {
       <div><b>HERE TO HELP</b><button onClick={() => navigate('/contact')}>Contact us</button><a href="mailto:glasseshouse1502@gmail.com">glasseshouse1502@gmail.com</a><a href="mailto:glasseshouse1502@gmail.com">Shipping & returns</a><a href="mailto:glasseshouse1502@gmail.com">Care guide</a></div>
       <div className="footer-address"><b>VISIT US</b><p>Platform No. 1, Shop No. 7,<br />Bandhan Sweet, Badlapur (W)</p><a href="tel:+917045609002">+91 7045609002</a></div>
     </div>
+    <CancellationPolicy placement="footer-policy" />
     <div className="footer-bottom"><span>© 2026 GLASSES HOUSE</span><span>MADE FOR YOUR EVERYDAY</span><button onClick={() => navigate('/contact')}>Get in touch <ArrowRight size={14} /></button></div>
   </footer>
 }

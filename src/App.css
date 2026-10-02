@@ -146,9 +146,18 @@ h1, h2, h3, p { margin-top: 0; }h1 em, h2 em, blockquote em { color: var(--olive
 .admin-table select, .tracking-input { width: 100%; min-height: 34px; padding: 0 8px; border: 1px solid var(--line); background: white; font-size: 9px; }
 .tracking-placeholder { color: #999a90; font-size: 8px; }
 .admin-empty { padding: 54px 16px; border-block: 1px solid var(--line); color: var(--muted); font-size: 11px; text-align: center; }
+.policy-section h2 { margin: 5px 0 10px; font-family: var(--serif); font-size: 18px; font-weight: 500; }
+.policy-section ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 20px; margin: 0; padding-left: 15px; color: var(--muted); font-size: 9px; line-height: 1.6; }
+.policy-section li { padding-left: 2px; }
+.policy-section strong { color: var(--ink); font-weight: 600; }
+.policy-section a { color: var(--olive-dark); white-space: nowrap; }
+.checkout-policy { margin-top: 18px; padding: 15px; border: 1px solid var(--line); background: var(--soft); }
+.footer-policy { padding: 22px 0; border-top: 1px solid #deded4; }
 @media (max-width: 640px) {
 	.admin-dashboard { padding-top: 38px; }
 	.admin-heading h1 { font-size: 36px; }
 	.admin-lock form { padding: 20px; }
 	.confirmation-delivery dl > div { grid-template-columns: 105px 1fr; }
+	.policy-section ul { grid-template-columns: 1fr; gap: 7px; }
+	.checkout-policy { padding: 12px; }
 }
