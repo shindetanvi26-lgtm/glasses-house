@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowRight, Check, CreditCard, Heart, MapPin, Menu, MessageCircle, Minus, Phone, Plus, Search, ShoppingBag, Star, X } from 'lucide-react'
+import { ArrowRight, Check, Copy, CreditCard, Heart, MapPin, Menu, MessageCircle, Minus, Phone, Plus, Search, ShoppingBag, Star, X } from 'lucide-react'
 import './App.css'
 
 const baseProducts = [
@@ -26,6 +26,7 @@ const products = [
 const formatINR = (amount) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount)
 const shippingFee = 50
 const photo = (id, width = 760) => id.startsWith('/') ? id : `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${width}&q=85`
+const createOrderId = () => `GH-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
 const whatsappNumber = window.WHATSAPP_STORE_NUMBER
 const whatsappUrl = `https://wa.me/${whatsappNumber.replace(/\D/g, '')}`
 const stored = (key) => { try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] } }
@@ -89,6 +90,7 @@ function App() {
       {path.startsWith('/product/') && <ProductDetail product={currentProduct} navigate={navigate} add={add} saved={saved} toggleSaved={toggleSaved} />}
       {path === '/cart' && <Cart cart={cart} quantity={quantity} remove={(id) => setCart((items) => items.filter((item) => item.id !== id))} setCart={setCart} navigate={navigate} />}
       {path === '/contact' && <Contact />}
+      {path === '/admin' && <AdminDashboard />}
     </main>
     <Footer navigate={navigate} />
     {notice && <div className="toast" role="status"><Check size={17} />{notice}<button aria-label="Dismiss" onClick={() => setNotice('')}><X size={16} /></button></div>}
@@ -207,7 +209,7 @@ function Cart({ cart, quantity, remove, setCart, navigate }) {
 
   const sendWhatsAppOrder = (method, proof = 'N/A') => {
     window.open(createWhatsAppOrderUrl(method, proof), '_blank', 'noopener,noreferrer')
-    finishOrder()
+    finishOrder(method, proof)
   }
 
   useEffect(() => {
@@ -225,7 +227,32 @@ function Cart({ cart, quantity, remove, setCart, navigate }) {
     return () => mobileViewport.removeEventListener('change', updateDevice)
   }, [])
 
-  const finishOrder = () => {
+  const finishOrder = (method = 'WhatsApp', proof = 'N/A') => {
+    const order = {
+      id: createOrderId(),
+      customerInfo: {
+        fullName: customerDetails.fullName.trim(),
+        phone: customerDetails.phone.trim(),
+      },
+      address: {
+        street: customerDetails.street.trim(),
+        city: customerDetails.city.trim(),
+        pincode: customerDetails.pincode.trim(),
+        landmark: customerDetails.landmark.trim(),
+      },
+      paymentMethod: method,
+      paymentStatus: method === 'Direct UPI' && proof !== 'N/A' ? 'Awaiting Verification' : 'Pending',
+      utr: proof,
+      items: cart.map((item) => ({ id: item.id, name: item.name, quantity: item.qty, unitPrice: item.price })),
+      subtotal,
+      shipping,
+      total,
+      orderDate: new Date().toISOString(),
+      deliveryStatus: 'Pending',
+      deliveryMethod: deliveryMethodLabel,
+      trackingId: '',
+    }
+    localStorage.setItem('gh-orders', JSON.stringify([order, ...stored('gh-orders')]))
     setOrderConfirmation({
       customerDetails: { ...customerDetails },
       deliveryMethod: deliveryMethodLabel,
@@ -283,7 +310,7 @@ function Cart({ cart, quantity, remove, setCart, navigate }) {
             <label className={paymentMethod === 'upi' ? 'payment-option selected' : 'payment-option'}><input type="radio" name="paymentMethod" value="upi" checked={paymentMethod === 'upi'} onChange={() => setPaymentMethod('upi')} /><span className="upi-glyph">U</span><span><strong>UPI</strong><small>Google Pay, PhonePe, Paytm or BHIM</small></span></label>
             <label className={paymentMethod === 'card' ? 'payment-option selected' : 'payment-option'}><input type="radio" name="paymentMethod" value="card" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} /><CreditCard size={18} /><span><strong>Credit / Debit Card</strong><small>Visa, Mastercard and RuPay</small></span></label>
           </div>
-          {paymentMethod === 'whatsapp' && <div className="payment-fields whatsapp-fields"><p>Your order summary will be sent to Glasses House on WhatsApp.</p><a className="button dark" href={createWhatsAppOrderUrl('WhatsApp')} target="_blank" rel="noreferrer" onClick={finishOrder}>Order via WhatsApp <ArrowRight size={16} /></a></div>}
+          {paymentMethod === 'whatsapp' && <div className="payment-fields whatsapp-fields"><p>Your order summary will be sent to Glasses House on WhatsApp.</p><a className="button dark" href={createWhatsAppOrderUrl('WhatsApp')} target="_blank" rel="noreferrer" onClick={() => finishOrder('WhatsApp')}>Order via WhatsApp <ArrowRight size={16} /></a></div>}
           {paymentMethod === 'upi' && <div className="payment-fields direct-upi">
             <div className="upi-payment-info">
               <div className="upi-qr"><p>Scan with any UPI app</p><img src={window.getUpiQrCodeUrl(total)} width="176" height="176" alt="UPI payment QR code" /></div>
@@ -296,7 +323,7 @@ function Cart({ cart, quantity, remove, setCart, navigate }) {
               <button className="button dark" type="submit">Send UTR with order on WhatsApp <ArrowRight size={16} /></button>
             </form>
           </div>}
-          {paymentMethod === 'card' && <form className="payment-fields" onSubmit={(event) => { event.preventDefault(); sendWhatsAppOrder('WhatsApp') }}>
+          {paymentMethod === 'card' && <form className="payment-fields" onSubmit={(event) => { event.preventDefault(); sendWhatsAppOrder('Card Payment') }}>
             <label className="field-label">Card Number<input required inputMode="numeric" autoComplete="cc-number" placeholder="1234 5678 9012 3456" pattern="[0-9 ]{12,23}" title="Enter a valid card number" /></label>
             <div className="card-fields"><label className="field-label">Expiry<input required autoComplete="cc-exp" placeholder="MM/YY" pattern="(0[1-9]|1[0-2])/[0-9]{2}" title="Use MM/YY format" /></label><label className="field-label">CVV<input required type="password" inputMode="numeric" autoComplete="cc-csc" placeholder="123" pattern="[0-9]{3,4}" title="Enter the 3 or 4 digit security code" /></label></div>
             <button className="button dark" type="submit">Send order via WhatsApp <ArrowRight size={16} /></button>
@@ -305,6 +332,72 @@ function Cart({ cart, quantity, remove, setCart, navigate }) {
         </>}
       </section>
     </div>}
+  </section>
+}
+
+function AdminDashboard() {
+  const [authenticated, setAuthenticated] = useState(false)
+  const [pin, setPin] = useState('')
+  const [pinError, setPinError] = useState('')
+  const [search, setSearch] = useState('')
+  const [orders, setOrders] = useState(() => {
+    const savedOrders = stored('gh-orders')
+    return Array.isArray(savedOrders) ? savedOrders : []
+  })
+  const [copiedOrderId, setCopiedOrderId] = useState('')
+
+  const updateOrder = (orderId, updates) => setOrders((currentOrders) => {
+    const nextOrders = currentOrders.map((order) => order.id === orderId ? { ...order, ...updates } : order)
+    localStorage.setItem('gh-orders', JSON.stringify(nextOrders))
+    return nextOrders
+  })
+
+  const copyOrderAddress = async (order) => {
+    const { street = '', city = '', pincode = '', landmark = '' } = order.address || {}
+    const address = `${street}, ${city}, ${pincode}${landmark ? `, Landmark: ${landmark}` : ''}`
+    try {
+      await navigator.clipboard.writeText(address)
+      setCopiedOrderId(order.id)
+      window.setTimeout(() => setCopiedOrderId(''), 1800)
+    } catch {
+      setCopiedOrderId('')
+    }
+  }
+
+  const visibleOrders = [...orders]
+    .sort((first, second) => new Date(second.orderDate) - new Date(first.orderDate))
+    .filter((order) => `${order.id} ${order.customerInfo?.phone || ''}`.toLowerCase().includes(search.trim().toLowerCase()))
+
+  if (!authenticated) return <section className="admin-lock wrap">
+    <form onSubmit={(event) => { event.preventDefault(); if (pin === '1214') { setAuthenticated(true); setPinError('') } else setPinError('That PIN didn’t match.') }}>
+      <p className="eyebrow">GLASSES HOUSE / PRIVATE</p>
+      <h1>Admin sign in<i>.</i></h1>
+      <label className="field-label">Admin PIN<input required type="password" inputMode="numeric" autoComplete="current-password" value={pin} onChange={(event) => setPin(event.target.value)} placeholder="Enter PIN" /></label>
+      {pinError && <p className="admin-error" role="alert">{pinError}</p>}
+      <button className="button dark" type="submit">Unlock dashboard <ArrowRight size={16} /></button>
+    </form>
+  </section>
+
+  return <section className="admin-dashboard wrap">
+    <div className="admin-heading"><div><p className="eyebrow">GLASSES HOUSE / PRIVATE</p><h1>Orders<i>.</i></h1></div><span>{orders.length} total</span></div>
+    <label className="admin-search"><Search size={17} /><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by customer phone or order ID" aria-label="Search by customer phone or order ID" /></label>
+    {visibleOrders.length === 0 ? <div className="admin-empty">{orders.length ? 'No orders match that search.' : 'Orders will appear here when customers place them.'}</div> : <div className="admin-table-wrap"><table className="admin-table">
+      <thead><tr><th>Order</th><th>Customer</th><th>Delivery Request</th><th>Items</th><th>Payment</th><th>Delivery Status</th><th>Tracking / Partner</th></tr></thead>
+      <tbody>{visibleOrders.map((order) => {
+        const customer = order.customerInfo || {}
+        const address = order.address || {}
+        const fullAddress = `${address.street || ''}, ${address.city || ''}, ${address.pincode || ''}`
+        return <tr key={order.id}>
+          <td><strong className="admin-order-id">{order.id}</strong><small>{new Date(order.orderDate).toLocaleString('en-IN')}</small><b>{formatINR(order.total || 0)}</b></td>
+          <td><strong>{customer.fullName || '—'}</strong><small>{customer.phone || '—'}</small><small>{order.deliveryMethod || 'Standard Shipping'}</small></td>
+          <td><span className="admin-address">{fullAddress}</span><small>Landmark: {address.landmark || '—'}</small><button className="copy-address" type="button" onClick={() => copyOrderAddress(order)}><Copy size={13} /> {copiedOrderId === order.id ? 'Address copied' : 'Copy Address for Porter/Dunzo'}</button></td>
+          <td><div className="admin-items">{(order.items || []).map((item) => <span key={`${order.id}-${item.id}`}>{item.name} × {item.quantity}</span>)}</div><small>Subtotal {formatINR(order.subtotal || 0)} · Shipping {formatINR(order.shipping || 0)}</small></td>
+          <td><strong>{order.paymentMethod || '—'}</strong><small>{order.paymentStatus || 'Pending'}</small><small>UTR: {order.utr && order.utr !== 'N/A' ? order.utr : '—'}</small></td>
+          <td><select aria-label={`Delivery status for ${order.id}`} value={order.deliveryStatus || 'Pending'} onChange={(event) => updateOrder(order.id, { deliveryStatus: event.target.value })}><option>Pending</option><option>Packed</option><option>Dispatched</option><option>Delivered</option></select></td>
+          <td>{order.deliveryStatus === 'Dispatched' ? <input className="tracking-input" aria-label={`Tracking ID or delivery partner for ${order.id}`} value={order.trackingId || ''} onChange={(event) => updateOrder(order.id, { trackingId: event.target.value })} placeholder="Tracking ID / Porter" /> : <span className="tracking-placeholder">Available when dispatched</span>}</td>
+        </tr>
+      })}</tbody>
+    </table></div>}
   </section>
 }
 
