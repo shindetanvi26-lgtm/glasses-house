@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowRight, Check, Copy, CreditCard, Heart, MapPin, Menu, MessageCircle, Minus, Phone, Plus, Search, ShoppingBag, Star, X } from 'lucide-react'
+import { ArrowRight, Check, ClipboardList, Copy, CreditCard, Heart, MapPin, Menu, MessageCircle, Minus, Phone, Plus, Search, ShoppingBag, Star, X } from 'lucide-react'
 import './App.css'
 
 const baseProducts = [
@@ -24,12 +24,14 @@ const products = [
   })),
 ]
 const formatINR = (amount) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount)
+const formatShipping = (amount) => amount === 0 ? 'Free (first order)' : formatINR(amount)
 const shippingFee = 50
 const photo = (id, width = 760) => id.startsWith('/') ? id : `https://images.unsplash.com/${id}?auto=format&fit=crop&w=${width}&q=85`
 const createOrderId = () => `GH-${Date.now()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
 const whatsappNumber = window.WHATSAPP_STORE_NUMBER
 const whatsappUrl = `https://wa.me/${whatsappNumber.replace(/\D/g, '')}`
 const stored = (key) => { try { return JSON.parse(localStorage.getItem(key) || '[]') } catch { return [] } }
+const normalizePhone = (phone = '') => String(phone).replace(/\D/g, '').slice(-10)
 
 function App() {
   const [path, setPath] = useState(location.pathname)
@@ -59,10 +61,10 @@ function App() {
     setSearchOpen(false)
     scrollTo({ top: 0, behavior: 'smooth' })
   }
-  const add = (product) => {
+  const add = (product, quantityToAdd = 1) => {
     setCart((items) => {
       const match = items.find((item) => item.id === product.id)
-      return match ? items.map((item) => item.id === product.id ? { ...item, qty: item.qty + 1 } : item) : [...items, { ...product, qty: 1 }]
+      return match ? items.map((item) => item.id === product.id ? { ...item, qty: item.qty + quantityToAdd } : item) : [...items, { ...product, qty: quantityToAdd }]
     })
     setNotice(`${product.name} added to your bag`)
     setTimeout(() => setNotice(''), 2400)
@@ -76,12 +78,12 @@ function App() {
   const shown = [...matching].sort((a, b) => sortBy === 'low' ? a.price - b.price : sortBy === 'high' ? b.price - a.price : 0)
 
   return <div className="store">
-    <div className="announcement"><a href={whatsappUrl} target="_blank" rel="noreferrer"><MessageCircle size={13} /> WhatsApp +91 7045609002</a><span>Flat ₹50 shipping on all orders</span></div>
+    <div className="announcement"><a href={whatsappUrl} target="_blank" rel="noreferrer"><MessageCircle size={13} /> WhatsApp +91 7045609002</a><span>First order ships free · ₹50 thereafter</span></div>
     <header className="header">
       <button className="icon mobile-toggle" aria-label="Toggle menu" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X /> : <Menu />}</button>
       <a className="wordmark" href="/" onClick={(event) => { event.preventDefault(); navigate('/') }}>glasses<span>house</span><i>.</i></a>
       <nav className={menuOpen ? 'nav open' : 'nav'}>{[['Shop all', '/shop'], ["Men's", '/men'], ["Women's", '/women'], ['Kids', '/kids'], ['Sunglasses', '/sunglasses']].map(([label, href]) => <a key={href} href={href} onClick={(event) => { event.preventDefault(); navigate(href) }}>{label}</a>)}</nav>
-      <div className="header-tools"><button className="icon" aria-label="Search" onClick={() => setSearchOpen(!searchOpen)}>{searchOpen ? <X /> : <Search />}</button><button className="icon wishlist-top" aria-label="Wishlist" onClick={() => navigate('/wishlist')}><Heart /></button><button className="bag" onClick={() => navigate('/cart')}><ShoppingBag /><span>Bag</span><b>{totalItems}</b></button></div>
+      <div className="header-tools"><button className="icon" aria-label="Search" onClick={() => setSearchOpen(!searchOpen)}>{searchOpen ? <X /> : <Search />}</button><button className="icon wishlist-top" aria-label="Wishlist" onClick={() => navigate('/wishlist')}><Heart /></button><button className="my-orders-button" onClick={() => navigate('/my-orders')}><ClipboardList size={18} /><span>My Orders</span></button><button className="bag" onClick={() => navigate('/cart')}><ShoppingBag /><span>Bag</span><b>{totalItems}</b></button></div>
       {searchOpen && <form className="searchbar" onSubmit={(event) => { event.preventDefault(); navigate('/shop') }}><Search size={18} /><input autoFocus placeholder="Search frames" value={query} onChange={(event) => setQuery(event.target.value)} /><button>Search <ArrowRight size={15} /></button></form>}
     </header>
     <main>
@@ -91,6 +93,7 @@ function App() {
       {path === '/cart' && <Cart cart={cart} quantity={quantity} remove={(id) => setCart((items) => items.filter((item) => item.id !== id))} setCart={setCart} navigate={navigate} />}
       {path === '/contact' && <Contact />}
       {path === '/admin' && <AdminDashboard />}
+      {path === '/my-orders' && <MyOrders add={add} navigate={navigate} />}
     </main>
     <Footer navigate={navigate} />
     {notice && <div className="toast" role="status"><Check size={17} />{notice}<button aria-label="Dismiss" onClick={() => setNotice('')}><X size={16} /></button></div>}
@@ -113,7 +116,7 @@ function ProductCard({ product, navigate, add, saved, toggleSaved }) {
   return <article className="product">
     <div className="product-photo" onClick={() => navigate(`/product/${product.slug}`)} role="button" tabIndex={0} onKeyDown={(event) => event.key === 'Enter' && navigate(`/product/${product.slug}`)}>
       <img src={photo(product.image)} alt={`${product.name} ${product.kind.toLowerCase()} glasses`} loading="lazy" />
-      <span className="sale">SAVE {Math.round((1 - product.price / product.was) * 100)}%</span>
+      {product.was > product.price && <span className="sale">SAVE {Math.round((1 - product.price / product.was) * 100)}%</span>}
       <button className={isSaved ? 'heart saved' : 'heart'} aria-label={isSaved ? 'Remove from wishlist' : 'Add to wishlist'} onClick={(event) => { event.stopPropagation(); toggleSaved(product.id) }}><Heart fill={isSaved ? 'currentColor' : 'none'} size={17} /></button>
       <button className="quick" onClick={(event) => { event.stopPropagation(); add(product) }}>Add to bag <Plus size={15} /></button>
     </div>
@@ -142,7 +145,7 @@ function ProductDetail({ product, navigate, add, saved, toggleSaved }) {
         <div className="spec"><span>IN THE BOX</span><b>Frame, case & cleaning cloth</b></div>
         <div className="spec"><span>THE GOOD STUFF</span><b>12-month frame warranty</b></div>
         <div className="detail-actions"><button className="button dark" onClick={() => { add(product); setAdded(true) }}>{added ? <><Check size={16} /> Added to bag</> : <>Add to bag <ArrowRight size={16} /></>}</button><button className={isSaved ? 'detail-heart saved' : 'detail-heart'} aria-label="Toggle wishlist" onClick={() => toggleSaved(product.id)}><Heart fill={isSaved ? 'currentColor' : 'none'} /></button></div>
-        <small className="ship-note"><Check size={14} /> Flat ₹50 shipping on all orders</small>
+        <small className="ship-note"><Check size={14} /> First order ships free · ₹50 thereafter</small>
       </div>
     </div>
   </section>
@@ -159,7 +162,9 @@ function Cart({ cart, quantity, remove, setCart, navigate }) {
   const [deliveryMethod, setDeliveryMethod] = useState('standard')
   const [orderConfirmation, setOrderConfirmation] = useState(null)
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0)
-  const shipping = cart.length > 0 ? shippingFee : 0
+  const existingOrders = stored('gh-orders')
+  const isFirstOrder = Array.isArray(existingOrders) && existingOrders.length === 0
+  const shipping = cart.length > 0 && !isFirstOrder ? shippingFee : 0
   const total = subtotal + shipping
   const storeUpiId = window.OWNER_UPI_ID
   const businessName = window.OWNER_NAME
@@ -188,7 +193,7 @@ function Cart({ cart, quantity, remove, setCart, navigate }) {
       '*Order Details:*',
       `- Items: ${items}`,
       `- Subtotal: ${formatINR(subtotal)}`,
-      `- Shipping: ${formatINR(shipping)}`,
+      `- Shipping: ${formatShipping(shipping)}`,
       `- Total Amount: ${formatINR(total)}`,
       `- Payment Method: ${method}`,
       `- UPI UTR / Transaction ID: ${proof}`,
@@ -265,7 +270,7 @@ function Cart({ cart, quantity, remove, setCart, navigate }) {
     setComplete(true)
   }
 
-  if (complete) return <section className="confirmation"><span><Check /></span><p className="eyebrow">THAT’S A GOOD CHOICE</p><h1>Your order is on its way<i>.</i></h1><p>Thanks for choosing Glasses House. We’ll be in touch with the details shortly.</p>{orderConfirmation && <div className="confirmation-delivery"><p className="eyebrow">LOCAL DELIVERY</p><h2>Delivery request</h2><dl><div><dt>Delivery option</dt><dd>{orderConfirmation.deliveryMethod}</dd></div><div><dt>Name</dt><dd>{orderConfirmation.customerDetails.fullName}</dd></div><div><dt>Phone Number</dt><dd>{orderConfirmation.customerDetails.phone}</dd></div><div><dt>Full Address</dt><dd>{orderConfirmation.customerDetails.street}, {orderConfirmation.customerDetails.city}</dd></div><div><dt>Pincode</dt><dd>{orderConfirmation.customerDetails.pincode}</dd></div><div><dt>Landmark</dt><dd>{orderConfirmation.customerDetails.landmark}</dd></div><div><dt>Shipping Fee</dt><dd>{formatINR(orderConfirmation.shipping)}</dd></div><div><dt>Total</dt><dd>{formatINR(orderConfirmation.total)}</dd></div></dl></div>}<button className="button dark" onClick={() => navigate('/shop')}>Back to the good stuff <ArrowRight size={16} /></button></section>
+  if (complete) return <section className="confirmation"><span><Check /></span><p className="eyebrow">THAT’S A GOOD CHOICE</p><h1>Your order is on its way<i>.</i></h1><p>Thanks for choosing Glasses House. We’ll be in touch with the details shortly.</p>{orderConfirmation && <div className="confirmation-delivery"><p className="eyebrow">LOCAL DELIVERY</p><h2>Delivery request</h2><dl><div><dt>Delivery option</dt><dd>{orderConfirmation.deliveryMethod}</dd></div><div><dt>Name</dt><dd>{orderConfirmation.customerDetails.fullName}</dd></div><div><dt>Phone Number</dt><dd>{orderConfirmation.customerDetails.phone}</dd></div><div><dt>Full Address</dt><dd>{orderConfirmation.customerDetails.street}, {orderConfirmation.customerDetails.city}</dd></div><div><dt>Pincode</dt><dd>{orderConfirmation.customerDetails.pincode}</dd></div><div><dt>Landmark</dt><dd>{orderConfirmation.customerDetails.landmark}</dd></div><div><dt>Shipping Fee</dt><dd>{formatShipping(orderConfirmation.shipping)}</dd></div><div><dt>Total</dt><dd>{formatINR(orderConfirmation.total)}</dd></div></dl></div>}<button className="button dark" onClick={() => navigate('/shop')}>Back to the good stuff <ArrowRight size={16} /></button></section>
   return <section className="cart-page wrap">
     <p className="eyebrow">A FEW GOOD THINGS</p>
     <h1>Your bag<i>.</i></h1>
@@ -278,7 +283,7 @@ function Cart({ cart, quantity, remove, setCart, navigate }) {
       <aside className="summary">
         <h2>Order summary</h2>
         <p><span>Subtotal</span><b>{formatINR(subtotal)}</b></p>
-        <p><span>Shipping Fee</span><b>{formatINR(shipping)}</b></p>
+        <p><span>Shipping Fee</span><b>{formatShipping(shipping)}</b></p>
         <p className="total"><strong>Total</strong><strong>{formatINR(total)}</strong></p>
         <button className="button dark" onClick={() => setCheckoutOpen(true)}>Continue to checkout <ArrowRight size={16} /></button>
         <small className="secure"><Check size={14} /> Secure checkout, always</small>
@@ -301,7 +306,7 @@ function Cart({ cart, quantity, remove, setCart, navigate }) {
         {customerDetailsComplete && <>
           <fieldset className="delivery-method-options">
             <legend>Local Delivery</legend>
-            <label className={deliveryMethod === 'standard' ? 'delivery-method selected' : 'delivery-method'}><input type="radio" name="deliveryMethod" value="standard" checked={deliveryMethod === 'standard'} onChange={() => setDeliveryMethod('standard')} /><span><strong>Standard Shipping</strong><small>Flat ₹50 shipping fee</small></span></label>
+            <label className={deliveryMethod === 'standard' ? 'delivery-method selected' : 'delivery-method'}><input type="radio" name="deliveryMethod" value="standard" checked={deliveryMethod === 'standard'} onChange={() => setDeliveryMethod('standard')} /><span><strong>Standard Shipping</strong><small>Free first order · ₹50 after</small></span></label>
             <label className={deliveryMethod === 'local-express' ? 'delivery-method selected' : 'delivery-method'}><input type="radio" name="deliveryMethod" value="local-express" checked={deliveryMethod === 'local-express'} onChange={() => setDeliveryMethod('local-express')} /><span><strong>Local Express Delivery (Dunzo / Porter)</strong><small>Courier fare confirmed with you before booking</small></span></label>
           </fieldset>
           <p className="checkout-total">Order total <strong>{formatINR(total)}</strong></p>
@@ -332,6 +337,66 @@ function Cart({ cart, quantity, remove, setCart, navigate }) {
         </>}
         <CancellationPolicy placement="checkout-policy" />
       </section>
+    </div>}
+  </section>
+}
+
+function MyOrders({ add, navigate }) {
+  const [orders] = useState(() => {
+    const savedOrders = stored('gh-orders')
+    return Array.isArray(savedOrders) ? [...savedOrders].sort((first, second) => new Date(second.orderDate) - new Date(first.orderDate)) : []
+  })
+  const latestPhone = normalizePhone(orders[0]?.customerInfo?.phone || '')
+  const [phone, setPhone] = useState(latestPhone)
+  const [searchedPhone, setSearchedPhone] = useState(latestPhone)
+  const [phoneError, setPhoneError] = useState('')
+  const matchingOrders = searchedPhone ? orders.filter((order) => normalizePhone(order.customerInfo?.phone) === searchedPhone) : []
+
+  const searchOrders = (event) => {
+    event.preventDefault()
+    const normalized = normalizePhone(phone)
+    if (normalized.length !== 10) {
+      setPhoneError('Enter a valid 10-digit phone number.')
+      return
+    }
+    setPhoneError('')
+    setSearchedPhone(normalized)
+  }
+
+  const trackingLink = (order) => {
+    const tracking = order.trackingId || ''
+    if (/^https?:\/\//i.test(tracking)) return tracking
+    if (/porter/i.test(tracking) || /porter/i.test(order.deliveryMethod || '')) return 'https://porter.in/'
+    if (/dunzo/i.test(tracking) || /dunzo/i.test(order.deliveryMethod || '')) return 'https://www.dunzo.com/'
+    return ''
+  }
+
+  return <section className="my-orders-page wrap">
+    <div className="my-orders-heading"><p className="eyebrow">GLASSES HOUSE / ORDER HISTORY</p><h1>My orders<i>.</i></h1></div>
+    <form className="my-orders-search" onSubmit={searchOrders}>
+      <label className="field-label">Phone Number<input required type="tel" inputMode="numeric" autoComplete="tel" pattern="[0-9]{10}" maxLength={10} value={phone} onChange={(event) => setPhone(event.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="Enter your 10-digit number" /></label>
+      <button className="button dark" type="submit">Find my orders <Search size={15} /></button>
+    </form>
+    {phoneError && <p className="orders-error" role="alert">{phoneError}</p>}
+    {!searchedPhone ? <div className="orders-empty"><p>Enter the 10-digit phone number used for your order.</p></div> : matchingOrders.length === 0 ? <div className="orders-empty"><h2>No previous orders found for this phone number</h2><button className="button dark" onClick={() => navigate('/shop')}>Browse Collection <ArrowRight size={16} /></button></div> : <div className="my-orders-list">
+      {matchingOrders.map((order) => {
+        const address = order.address || {}
+        const status = order.deliveryStatus || 'Pending'
+        const link = trackingLink(order)
+        return <article className="my-order-card" key={order.id}>
+          <div className="my-order-top"><div><span className="eyebrow">ORDER</span><h2>{order.id}</h2><time dateTime={order.orderDate}>{new Date(order.orderDate).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</time></div><span className={`order-status status-${status.toLowerCase()}`}>{status}</span></div>
+          <div className="my-order-items">{(order.items || []).map((item) => {
+            const product = products.find((entry) => entry.id === item.id)
+            const quantity = item.quantity || 1
+            return <div className="my-order-item" key={`${order.id}-${item.id}`}>
+              <img src={photo(product?.image || 'photo-1511499767150-a48a237f0083', 250)} alt={item.name} />
+              <div className="my-order-item-info"><strong>{item.name}</strong><span>Qty {quantity} · {formatINR(item.unitPrice * quantity)}</span><button className="reorder-item" type="button" disabled={!product} onClick={() => product && add(product, quantity)}>Reorder <ArrowRight size={13} /></button></div>
+            </div>
+          })}</div>
+          <div className="my-order-details"><div><span>Delivery address</span><strong>{address.street}, {address.city}, {address.pincode}</strong><small>Landmark: {address.landmark || '—'}</small></div><div className="my-order-totals"><p><span>Subtotal</span><strong>{formatINR(order.subtotal || 0)}</strong></p><p><span>Shipping</span><strong>{formatShipping(order.shipping || 0)}</strong></p><p className="my-order-total"><span>Total paid</span><strong>{formatINR(order.total || 0)}</strong></p></div></div>
+          {status === 'Dispatched' && <div className="my-order-tracking"><strong>Driver tracking</strong>{order.trackingId ? <span>{order.trackingId}</span> : <span>Tracking details will be shared soon.</span>}{link && <a href={link} target="_blank" rel="noreferrer">Open {/dunzo/i.test(link) ? 'Dunzo' : 'Porter'} <ArrowRight size={13} /></a>}</div>}
+        </article>
+      })}
     </div>}
   </section>
 }
