@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#fffefa" />
+    <meta name="description" content="Thoughtfully made everyday eyewear. Find frames that help you see better and look better at Glasses House." />
+    <title>Glasses House — See better. Look better.</title>
+    <script>
+      const WHATSAPP_STORE_NUMBER = '+91 7045609002'
+      window.WHATSAPP_STORE_NUMBER = WHATSAPP_STORE_NUMBER
+      const OWNER_UPI_ID = 'shindeswayam69@okicici'
+      const OWNER_NAME = 'Glasses House'
+      window.OWNER_UPI_ID = OWNER_UPI_ID
+      window.OWNER_NAME = OWNER_NAME
+      window.openMobileUpi = (amount) => {
+        const upiUrl = `upi://pay?pa=${OWNER_UPI_ID}&pn=${encodeURIComponent(OWNER_NAME)}&am=${amount}&cu=INR&tn=${encodeURIComponent('Glasses House Order')}`
+        window.location.href = upiUrl
+      }
+      window.getUpiQrCodeUrl = (amount) => {
+        const upiData = `upi://pay?pa=${OWNER_UPI_ID}&pn=${encodeURIComponent(OWNER_NAME)}&am=${amount}&cu=INR`
+        return `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(upiData)}`
+      }
+      const productsData = [
+        {
+          id: 9,
+          slug: 'dior-black',
+          name: 'DIOR BLACK',
+          category: 'Sunglasses',
+          price: 1999,
+          originalPrice: 2499,
+          features: ['POLARIZED'],
+          image: '/products/dior-black.jpeg',
+        },
+      ]
+      window.productsData = productsData
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
