@@ -342,7 +342,7 @@ function Cart({ cart, quantity, remove, setCart, navigate }) {
 }
 
 function MyOrders({ add, navigate }) {
-  const [orders] = useState(() => {
+  const [orders, setOrders] = useState(() => {
     const savedOrders = stored('gh-orders')
     return Array.isArray(savedOrders) ? [...savedOrders].sort((first, second) => new Date(second.orderDate) - new Date(first.orderDate)) : []
   })
@@ -371,6 +371,17 @@ function MyOrders({ add, navigate }) {
     return ''
   }
 
+  const cancelOrder = (order) => {
+    if (!window.confirm(`Are you sure you want to cancel Order #${order.id}?`)) return
+    const customer = order.customerInfo || {}
+    const message = `Hi Glasses House, I would like to cancel my Order #${order.id} for ${customer.fullName || 'Customer'}, Mobile: ${customer.phone || ''}.`
+    const savedOrders = stored('gh-orders')
+    const updatedOrders = savedOrders.map((savedOrder) => savedOrder.id === order.id ? { ...savedOrder, deliveryStatus: 'Cancelled' } : savedOrder)
+    localStorage.setItem('gh-orders', JSON.stringify(updatedOrders))
+    setOrders(updatedOrders.sort((first, second) => new Date(second.orderDate) - new Date(first.orderDate)))
+    window.open(`${whatsappUrl}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer')
+  }
+
   return <section className="my-orders-page wrap">
     <div className="my-orders-heading"><p className="eyebrow">GLASSES HOUSE / ORDER HISTORY</p><h1>My orders<i>.</i></h1></div>
     <form className="my-orders-search" onSubmit={searchOrders}>
@@ -395,6 +406,8 @@ function MyOrders({ add, navigate }) {
           })}</div>
           <div className="my-order-details"><div><span>Delivery address</span><strong>{address.street}, {address.city}, {address.pincode}</strong><small>Landmark: {address.landmark || '—'}</small></div><div className="my-order-totals"><p><span>Subtotal</span><strong>{formatINR(order.subtotal || 0)}</strong></p><p><span>Shipping</span><strong>{formatShipping(order.shipping || 0)}</strong></p><p className="my-order-total"><span>Total paid</span><strong>{formatINR(order.total || 0)}</strong></p></div></div>
           {status === 'Dispatched' && <div className="my-order-tracking"><strong>Driver tracking</strong>{order.trackingId ? <span>{order.trackingId}</span> : <span>Tracking details will be shared soon.</span>}{link && <a href={link} target="_blank" rel="noreferrer">Open {/dunzo/i.test(link) ? 'Dunzo' : 'Porter'} <ArrowRight size={13} /></a>}</div>}
+          {(status === 'Pending' || status === 'Packed') && <div className="cancel-order-section"><button className="cancel-order-button" type="button" onClick={() => cancelOrder(order)}>Cancel Order</button></div>}
+          {(status === 'Dispatched' || status === 'Delivered') && <p className="cancel-order-note">Dispatched orders cannot be cancelled directly. Contact WhatsApp support for return requests.</p>}
         </article>
       })}
     </div>}
@@ -459,7 +472,7 @@ function AdminDashboard() {
           <td><span className="admin-address">{fullAddress}</span><small>Landmark: {address.landmark || '—'}</small><button className="copy-address" type="button" onClick={() => copyOrderAddress(order)}><Copy size={13} /> {copiedOrderId === order.id ? 'Address copied' : 'Copy Address for Porter/Dunzo'}</button></td>
           <td><div className="admin-items">{(order.items || []).map((item) => <span key={`${order.id}-${item.id}`}>{item.name} × {item.quantity}</span>)}</div><small>Subtotal {formatINR(order.subtotal || 0)} · Shipping {formatINR(order.shipping || 0)}</small></td>
           <td><strong>{order.paymentMethod || '—'}</strong><small>{order.paymentStatus || 'Pending'}</small><small>UTR: {order.utr && order.utr !== 'N/A' ? order.utr : '—'}</small></td>
-          <td><select aria-label={`Delivery status for ${order.id}`} value={order.deliveryStatus || 'Pending'} onChange={(event) => updateOrder(order.id, { deliveryStatus: event.target.value })}><option>Pending</option><option>Packed</option><option>Dispatched</option><option>Delivered</option></select></td>
+          <td><select aria-label={`Delivery status for ${order.id}`} value={order.deliveryStatus || 'Pending'} onChange={(event) => updateOrder(order.id, { deliveryStatus: event.target.value })}><option>Pending</option><option>Packed</option><option>Dispatched</option><option>Delivered</option><option>Cancelled</option></select></td>
           <td>{order.deliveryStatus === 'Dispatched' ? <input className="tracking-input" aria-label={`Tracking ID or delivery partner for ${order.id}`} value={order.trackingId || ''} onChange={(event) => updateOrder(order.id, { trackingId: event.target.value })} placeholder="Tracking ID / Porter" /> : <span className="tracking-placeholder">Available when dispatched</span>}</td>
         </tr>
       })}</tbody>

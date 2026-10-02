@@ -195,6 +195,10 @@ h1, h2, h3, p { margin-top: 0; }h1 em, h2 em, blockquote em { color: var(--olive
 .my-order-tracking { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 13px; margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 9px; }
 .my-order-tracking > span { color: var(--muted); }
 .my-order-tracking a { display: inline-flex; align-items: center; gap: 5px; color: var(--olive-dark); }
+.cancel-order-section { display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.cancel-order-button { padding: 7px 10px; border: 1px solid #d9aaa2; background: transparent; color: #985347; font-size: 9px; cursor: pointer; }
+.cancel-order-button:hover { background: #fbf1ef; }
+.cancel-order-note { margin: 12px 0 0; padding: 10px; background: #f7f3e8; color: #786841; font-size: 9px; line-height: 1.55; }
 @media (max-width: 640px) {
 	.admin-dashboard { padding-top: 38px; }
 	.admin-heading h1 { font-size: 36px; }
