@@ -152,13 +152,63 @@ function Cart({ cart, quantity, remove, setCart, navigate }) {
   const [paymentMethod, setPaymentMethod] = useState('whatsapp')
   const [utrNumber, setUtrNumber] = useState('')
   const [isMobile, setIsMobile] = useState(false)
+  const [customerDetails, setCustomerDetails] = useState({ fullName: '', phone: '', street: '', city: '', pincode: '', landmark: '' })
+  const [customerDetailsComplete, setCustomerDetailsComplete] = useState(false)
+  const [deliveryMethod, setDeliveryMethod] = useState('standard')
+  const [orderConfirmation, setOrderConfirmation] = useState(null)
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0)
   const shipping = cart.length > 0 ? shippingFee : 0
   const total = subtotal + shipping
-  const orderDetails = cart.map((item) => `${item.name} x${item.qty}: ${formatINR(item.price * item.qty)}`).join('\n')
   const storeUpiId = window.OWNER_UPI_ID
   const businessName = window.OWNER_NAME
-  const createWhatsAppOrderUrl = (method, proof) => `${whatsappUrl}?text=${encodeURIComponent(`Hello ${businessName}, I would like to place an order:\n${orderDetails}\nPayment method: ${method}\nPayment proof / UTR: ${proof}\nTotal: ${formatINR(total)}`)}`
+  const deliveryMethodLabel = deliveryMethod === 'local-express' ? 'Local Express Delivery (Dunzo / Porter)' : 'Standard Shipping'
+  const createWhatsAppOrderUrl = (method, proof = 'N/A') => {
+    const fullAddress = `${customerDetails.street.trim()}, ${customerDetails.city.trim()}`
+    const address = `${fullAddress}, ${customerDetails.pincode.trim()}`
+    const items = cart.map((item) => `${item.name} x${item.qty}`).join(', ')
+    const message = [
+      '*New Order - Glasses House*',
+      '*Customer Details:*',
+      `- Name: ${customerDetails.fullName.trim()}`,
+      `- Phone: ${customerDetails.phone.trim()}`,
+      `- Address: ${address}`,
+      `- Landmark: ${customerDetails.landmark.trim()}`,
+      '',
+      '*Delivery Request:*',
+      `- Delivery Option: ${deliveryMethodLabel}`,
+      `- Name: ${customerDetails.fullName.trim()}`,
+      `- Phone Number: ${customerDetails.phone.trim()}`,
+      `- Full Address: ${fullAddress}`,
+      `- Pincode: ${customerDetails.pincode.trim()}`,
+      `- Landmark: ${customerDetails.landmark.trim()}`,
+      ...(deliveryMethod === 'local-express' ? ['- Courier Fare: Confirm with customer before booking'] : []),
+      '',
+      '*Order Details:*',
+      `- Items: ${items}`,
+      `- Subtotal: ${formatINR(subtotal)}`,
+      `- Shipping: ${formatINR(shipping)}`,
+      `- Total Amount: ${formatINR(total)}`,
+      `- Payment Method: ${method}`,
+      `- UPI UTR / Transaction ID: ${proof}`,
+    ].join('\n')
+    return `${whatsappUrl}?text=${encodeURIComponent(message)}`
+  }
+
+  const updateCustomerDetail = (event) => {
+    const { name, value } = event.target
+    setCustomerDetails((details) => ({ ...details, [name]: value }))
+    setCustomerDetailsComplete(false)
+  }
+
+  const confirmCustomerDetails = (event) => {
+    event.preventDefault()
+    setCustomerDetailsComplete(true)
+  }
+
+  const sendWhatsAppOrder = (method, proof = 'N/A') => {
+    window.open(createWhatsAppOrderUrl(method, proof), '_blank', 'noopener,noreferrer')
+    finishOrder()
+  }
 
   useEffect(() => {
     if (!checkoutOpen) return undefined
@@ -176,12 +226,19 @@ function Cart({ cart, quantity, remove, setCart, navigate }) {
   }, [])
 
   const finishOrder = () => {
+    setOrderConfirmation({
+      customerDetails: { ...customerDetails },
+      deliveryMethod: deliveryMethodLabel,
+      subtotal,
+      shipping,
+      total,
+    })
     setCart([])
     setCheckoutOpen(false)
     setComplete(true)
   }
 
-  if (complete) return <section className="confirmation"><span><Check /></span><p className="eyebrow">THAT’S A GOOD CHOICE</p><h1>Your order is on its way<i>.</i></h1><p>Thanks for choosing Glasses House. We’ll be in touch with the details shortly.</p><button className="button dark" onClick={() => navigate('/shop')}>Back to the good stuff <ArrowRight size={16} /></button></section>
+  if (complete) return <section className="confirmation"><span><Check /></span><p className="eyebrow">THAT’S A GOOD CHOICE</p><h1>Your order is on its way<i>.</i></h1><p>Thanks for choosing Glasses House. We’ll be in touch with the details shortly.</p>{orderConfirmation && <div className="confirmation-delivery"><p className="eyebrow">LOCAL DELIVERY</p><h2>Delivery request</h2><dl><div><dt>Delivery option</dt><dd>{orderConfirmation.deliveryMethod}</dd></div><div><dt>Name</dt><dd>{orderConfirmation.customerDetails.fullName}</dd></div><div><dt>Phone Number</dt><dd>{orderConfirmation.customerDetails.phone}</dd></div><div><dt>Full Address</dt><dd>{orderConfirmation.customerDetails.street}, {orderConfirmation.customerDetails.city}</dd></div><div><dt>Pincode</dt><dd>{orderConfirmation.customerDetails.pincode}</dd></div><div><dt>Landmark</dt><dd>{orderConfirmation.customerDetails.landmark}</dd></div><div><dt>Shipping Fee</dt><dd>{formatINR(orderConfirmation.shipping)}</dd></div><div><dt>Total</dt><dd>{formatINR(orderConfirmation.total)}</dd></div></dl></div>}<button className="button dark" onClick={() => navigate('/shop')}>Back to the good stuff <ArrowRight size={16} /></button></section>
   return <section className="cart-page wrap">
     <p className="eyebrow">A FEW GOOD THINGS</p>
     <h1>Your bag<i>.</i></h1>
@@ -203,35 +260,49 @@ function Cart({ cart, quantity, remove, setCart, navigate }) {
     {checkoutOpen && <div className="checkout-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setCheckoutOpen(false) }}>
       <section className="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-title">
         <div className="checkout-heading"><div><p className="eyebrow">ALMOST YOURS</p><h2 id="checkout-title">Choose how to pay</h2></div><button className="checkout-close" aria-label="Close checkout" onClick={() => setCheckoutOpen(false)}><X size={20} /></button></div>
-        <p className="checkout-total">Order total <strong>{formatINR(total)}</strong></p>
-        <div className="payment-options" role="radiogroup" aria-label="Payment method">
-          <label className={paymentMethod === 'whatsapp' ? 'payment-option selected' : 'payment-option'}><input type="radio" name="paymentMethod" value="whatsapp" checked={paymentMethod === 'whatsapp'} onChange={() => setPaymentMethod('whatsapp')} /><MessageCircle size={18} /><span><strong>WhatsApp Order</strong><small>Confirm your order with our team</small></span></label>
-          <label className={paymentMethod === 'upi' ? 'payment-option selected' : 'payment-option'}><input type="radio" name="paymentMethod" value="upi" checked={paymentMethod === 'upi'} onChange={() => setPaymentMethod('upi')} /><span className="upi-glyph">U</span><span><strong>UPI</strong><small>Google Pay, PhonePe, Paytm or BHIM</small></span></label>
-          <label className={paymentMethod === 'card' ? 'payment-option selected' : 'payment-option'}><input type="radio" name="paymentMethod" value="card" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} /><CreditCard size={18} /><span><strong>Credit / Debit Card</strong><small>Visa, Mastercard and RuPay</small></span></label>
+        <div className="customer-checkout">
+          <div className="customer-heading"><h3>Delivery details</h3>{customerDetailsComplete && <button type="button" className="customer-edit" onClick={() => setCustomerDetailsComplete(false)}>Edit</button>}</div>
+          {customerDetailsComplete ? <div className="customer-confirmed"><strong>{customerDetails.fullName}</strong><span>{customerDetails.phone}</span><span>{customerDetails.street}, {customerDetails.city}, {customerDetails.pincode}</span><span>Landmark: {customerDetails.landmark}</span></div> : <form className="customer-details-form" onSubmit={confirmCustomerDetails}>
+            <label className="field-label">Full Name<input required name="fullName" autoComplete="name" minLength={2} value={customerDetails.fullName} onChange={updateCustomerDetail} placeholder="Your full name" /></label>
+            <label className="field-label">Phone Number<input required name="phone" type="tel" inputMode="numeric" autoComplete="tel" pattern="[0-9]{10,13}" maxLength={13} value={customerDetails.phone} onChange={(event) => setCustomerDetails((details) => ({ ...details, phone: event.target.value.replace(/\D/g, '').slice(0, 13) }))} placeholder="10–13 digit phone number" title="Enter a 10–13 digit phone number" /></label>
+            <label className="field-label">Street Address<input required name="street" autoComplete="street-address" value={customerDetails.street} onChange={updateCustomerDetail} placeholder="House / building, street, area" /></label>
+            <div className="delivery-city-row"><label className="field-label">City<input required name="city" autoComplete="address-level2" value={customerDetails.city} onChange={updateCustomerDetail} placeholder="City" /></label><label className="field-label">Pincode<input required name="pincode" inputMode="numeric" autoComplete="postal-code" pattern="[0-9]{6}" maxLength={6} value={customerDetails.pincode} onChange={updateCustomerDetail} placeholder="6-digit pincode" title="Enter a 6-digit pincode" /></label></div>
+            <label className="field-label">Landmark<input required name="landmark" value={customerDetails.landmark} onChange={updateCustomerDetail} placeholder="Nearby landmark" /></label>
+            <button className="button dark" type="submit">Continue to payment <ArrowRight size={16} /></button>
+          </form>}
         </div>
-        {paymentMethod === 'whatsapp' && <div className="payment-fields whatsapp-fields"><p>Your order summary will be sent to Glasses House on WhatsApp.</p><a className="button dark" href={createWhatsAppOrderUrl('WhatsApp order', 'Payment pending')} target="_blank" rel="noreferrer" onClick={finishOrder}>Continue with WhatsApp <ArrowRight size={16} /></a></div>}
-        {paymentMethod === 'upi' && <div className="payment-fields direct-upi">
-          <div className="upi-payment-info">
-            <div className="upi-qr"><p>Scan with any UPI app</p><img src={window.getUpiQrCodeUrl(total)} width="176" height="176" alt="UPI payment QR code" /></div>
-            <div className="upi-payee"><span>PAY TO</span><strong>{businessName}</strong><span>UPI ID</span><strong className="upi-id-value">{storeUpiId}</strong><span>AMOUNT</span><strong>{formatINR(total)}</strong></div>
+        {customerDetailsComplete && <>
+          <fieldset className="delivery-method-options">
+            <legend>Local Delivery</legend>
+            <label className={deliveryMethod === 'standard' ? 'delivery-method selected' : 'delivery-method'}><input type="radio" name="deliveryMethod" value="standard" checked={deliveryMethod === 'standard'} onChange={() => setDeliveryMethod('standard')} /><span><strong>Standard Shipping</strong><small>Flat ₹50 shipping fee</small></span></label>
+            <label className={deliveryMethod === 'local-express' ? 'delivery-method selected' : 'delivery-method'}><input type="radio" name="deliveryMethod" value="local-express" checked={deliveryMethod === 'local-express'} onChange={() => setDeliveryMethod('local-express')} /><span><strong>Local Express Delivery (Dunzo / Porter)</strong><small>Courier fare confirmed with you before booking</small></span></label>
+          </fieldset>
+          <p className="checkout-total">Order total <strong>{formatINR(total)}</strong></p>
+          <div className="payment-options" role="radiogroup" aria-label="Payment method">
+            <label className={paymentMethod === 'whatsapp' ? 'payment-option selected' : 'payment-option'}><input type="radio" name="paymentMethod" value="whatsapp" checked={paymentMethod === 'whatsapp'} onChange={() => setPaymentMethod('whatsapp')} /><MessageCircle size={18} /><span><strong>WhatsApp Order</strong><small>Confirm your order with our team</small></span></label>
+            <label className={paymentMethod === 'upi' ? 'payment-option selected' : 'payment-option'}><input type="radio" name="paymentMethod" value="upi" checked={paymentMethod === 'upi'} onChange={() => setPaymentMethod('upi')} /><span className="upi-glyph">U</span><span><strong>UPI</strong><small>Google Pay, PhonePe, Paytm or BHIM</small></span></label>
+            <label className={paymentMethod === 'card' ? 'payment-option selected' : 'payment-option'}><input type="radio" name="paymentMethod" value="card" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} /><CreditCard size={18} /><span><strong>Credit / Debit Card</strong><small>Visa, Mastercard and RuPay</small></span></label>
           </div>
-          <button className="button dark mobile-upi-pay" type="button" onClick={() => window.openMobileUpi(total)}>Pay via UPI <ArrowRight size={16} /></button>
-          <p className="upi-help">{isMobile ? 'Pay in your UPI app, then enter the 12-digit UTR below.' : 'Scan the QR using your UPI app, complete the payment, then enter the 12-digit UTR below.'}</p>
-          <form className="payment-fields" onSubmit={(event) => {
-            event.preventDefault()
-            window.open(createWhatsAppOrderUrl('Direct UPI', utrNumber), '_blank', 'noopener,noreferrer')
-            finishOrder()
-          }}>
-            <label className="field-label">UPI Transaction ID / UTR Number<input required type="text" inputMode="numeric" autoComplete="off" value={utrNumber} onChange={(event) => setUtrNumber(event.target.value.replace(/\D/g, '').slice(0, 12))} placeholder="Enter your 12-digit UTR" pattern="[0-9]{12}" minLength={12} maxLength={12} title="Enter the 12-digit UPI transaction ID from your payment app" /></label>
-            <button className="button dark" type="submit">Send UTR with order on WhatsApp <ArrowRight size={16} /></button>
-          </form>
-        </div>}
-        {paymentMethod === 'card' && <form className="payment-fields" onSubmit={(event) => { event.preventDefault(); finishOrder() }}>
-          <label className="field-label">Card Number<input required inputMode="numeric" autoComplete="cc-number" placeholder="1234 5678 9012 3456" pattern="[0-9 ]{12,23}" title="Enter a valid card number" /></label>
-          <div className="card-fields"><label className="field-label">Expiry<input required autoComplete="cc-exp" placeholder="MM/YY" pattern="(0[1-9]|1[0-2])/[0-9]{2}" title="Use MM/YY format" /></label><label className="field-label">CVV<input required type="password" inputMode="numeric" autoComplete="cc-csc" placeholder="123" pattern="[0-9]{3,4}" title="Enter the 3 or 4 digit security code" /></label></div>
-          <button className="button dark" type="submit">Submit card order request <ArrowRight size={16} /></button>
-        </form>}
-        <p className="checkout-disclaimer">Online payment is not connected yet. UPI and card submissions are order requests for the store to confirm.</p>
+          {paymentMethod === 'whatsapp' && <div className="payment-fields whatsapp-fields"><p>Your order summary will be sent to Glasses House on WhatsApp.</p><a className="button dark" href={createWhatsAppOrderUrl('WhatsApp')} target="_blank" rel="noreferrer" onClick={finishOrder}>Order via WhatsApp <ArrowRight size={16} /></a></div>}
+          {paymentMethod === 'upi' && <div className="payment-fields direct-upi">
+            <div className="upi-payment-info">
+              <div className="upi-qr"><p>Scan with any UPI app</p><img src={window.getUpiQrCodeUrl(total)} width="176" height="176" alt="UPI payment QR code" /></div>
+              <div className="upi-payee"><span>PAY TO</span><strong>{businessName}</strong><span>UPI ID</span><strong className="upi-id-value">{storeUpiId}</strong><span>AMOUNT</span><strong>{formatINR(total)}</strong></div>
+            </div>
+            <button className="button dark mobile-upi-pay" type="button" onClick={() => window.openMobileUpi(total)}>Pay via UPI <ArrowRight size={16} /></button>
+            <p className="upi-help">{isMobile ? 'Pay in your UPI app, then enter the 12-digit UTR below.' : 'Scan the QR using your UPI app, complete the payment, then enter the 12-digit UTR below.'}</p>
+            <form className="payment-fields" onSubmit={(event) => { event.preventDefault(); sendWhatsAppOrder('Direct UPI', utrNumber) }}>
+              <label className="field-label">UPI Transaction ID / UTR Number<input required type="text" inputMode="numeric" autoComplete="off" value={utrNumber} onChange={(event) => setUtrNumber(event.target.value.replace(/\D/g, '').slice(0, 12))} placeholder="Enter your 12-digit UTR" pattern="[0-9]{12}" minLength={12} maxLength={12} title="Enter the 12-digit UPI transaction ID from your payment app" /></label>
+              <button className="button dark" type="submit">Send UTR with order on WhatsApp <ArrowRight size={16} /></button>
+            </form>
+          </div>}
+          {paymentMethod === 'card' && <form className="payment-fields" onSubmit={(event) => { event.preventDefault(); sendWhatsAppOrder('WhatsApp') }}>
+            <label className="field-label">Card Number<input required inputMode="numeric" autoComplete="cc-number" placeholder="1234 5678 9012 3456" pattern="[0-9 ]{12,23}" title="Enter a valid card number" /></label>
+            <div className="card-fields"><label className="field-label">Expiry<input required autoComplete="cc-exp" placeholder="MM/YY" pattern="(0[1-9]|1[0-2])/[0-9]{2}" title="Use MM/YY format" /></label><label className="field-label">CVV<input required type="password" inputMode="numeric" autoComplete="cc-csc" placeholder="123" pattern="[0-9]{3,4}" title="Enter the 3 or 4 digit security code" /></label></div>
+            <button className="button dark" type="submit">Send order via WhatsApp <ArrowRight size={16} /></button>
+          </form>}
+          <p className="checkout-disclaimer">Online card payment is not connected yet. UPI and card submissions are order requests for the store to confirm.</p>
+        </>}
       </section>
     </div>}
   </section>
