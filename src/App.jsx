@@ -2,18 +2,7 @@ import { useEffect, useState } from 'react'
 import { ArrowRight, Check, Copy, CreditCard, Heart, MapPin, Menu, MessageCircle, Minus, Phone, Plus, Search, ShoppingBag, Star, X } from 'lucide-react'
 import './App.css'
 
-const baseProducts = [
-  { id: 1, slug: 'harper', name: 'The Harper', category: 'Women', kind: 'Optical', price: 10752, was: 13440, rating: '4.9', image: 'photo-1574258495973-f010dfbb5371', color: 'Tortoise / Champagne', description: 'A softly sculpted silhouette with just the right amount of presence. Made for long days, late dinners, and everything in between.' },
-  { id: 2, slug: 'marlow', name: 'The Marlow', category: 'Men', kind: 'Optical', price: 12180, was: 15120, rating: '4.8', image: 'photo-1508296695146-257a814070b4', color: 'Dark Havana', description: 'A confident everyday frame with clean lines, a comfortable fit, and a little character.' },
-  { id: 3, slug: 'sol', name: 'The Sol', category: 'Women', kind: 'Sunglasses', price: 9912, was: 12600, rating: '4.9', image: 'photo-1511499767150-a48a237f0083', color: 'Honey / Olive lens', description: 'A warm, sun-ready frame with UV400 lenses and a flattering lifted shape.' },
-  { id: 4, slug: 'ellis', name: 'The Ellis', category: 'Men', kind: 'Optical', price: 11340, was: 14112, rating: '4.7', image: 'photo-1577803645773-f96470509666', color: 'Matte Black', description: 'Understated and easy to wear, with a modern profile from weekday to weekend.' },
-  { id: 5, slug: 'remy', name: 'The Remy', category: 'Kids', kind: 'Optical', price: 6552, was: 8232, rating: '4.8', image: 'photo-1503919005314-30d93d07d823', color: 'Ocean Blue', description: 'A lightweight, flexible frame made for big days, little faces, and all the adventures between.' },
-  { id: 6, slug: 'cleo', name: 'The Cleo', category: 'Women', kind: 'Sunglasses', price: 10500, was: 13272, rating: '4.9', image: 'photo-1473496169904-658ba7c44d8a', color: 'Soft black / Smoke', description: 'A modern cat-eye with crisp lines and polarized lenses for bright days.' },
-  { id: 7, slug: 'porter', name: 'The Porter', category: 'Men', kind: 'Optical', price: 11928, was: 14784, rating: '4.8', image: 'photo-1500648767791-00dcc994a43e', color: 'Walnut', description: 'A timeless shape in rich walnut acetate, finished by hand for a considered feel.' },
-  { id: 8, slug: 'june', name: 'The June', category: 'Kids', kind: 'Sunglasses', price: 5376, was: 6888, rating: '4.7', image: 'photo-1534452203293-494d7ddbf7e0', color: 'Coral / Amber lens', description: 'Bright, bendy, and ready for recess. UV400 protection comes standard.' },
-]
 const products = [
-  ...baseProducts,
   ...(window.productsData || []).map((product) => ({
     ...product,
     was: product.originalPrice,
@@ -34,9 +23,9 @@ const stored = (key) => { try { return JSON.parse(localStorage.getItem(key) || '
 
 function App() {
   const [path, setPath] = useState(location.pathname)
-  const [cart, setCart] = useState(() => stored('gh-cart').map((item) => {
+  const [cart, setCart] = useState(() => stored('gh-cart').flatMap((item) => {
     const currentProduct = products.find((product) => product.id === item.id)
-    return currentProduct ? { ...currentProduct, qty: item.qty ?? item.quantity ?? 1 } : item
+    return currentProduct ? [{ ...currentProduct, qty: item.qty ?? item.quantity ?? 1 }] : []
   }))
   const [saved, setSaved] = useState(stored('gh-saved'))
   const [menuOpen, setMenuOpen] = useState(false)
